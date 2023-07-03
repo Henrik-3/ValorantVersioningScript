@@ -1,0 +1,12 @@
+{
+    "name": "valorantversioningscript",
+    "version": "1.0.0",
+    "description": "Valorant Versioning Script written in JS",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js"
+    },
+    "type": "module",
+    "author": "HenrikDev",
+    "license": "ISC"
+}
