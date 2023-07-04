@@ -3,8 +3,17 @@ import * as path from 'path';
 import {promisify} from 'util';
 import * as childProcess from 'child_process';
 import axios from 'axios';
+import {Agent} from 'https';
+import {platform} from 'os';
+
+const agent = new Agent({
+    ciphers: ['TLS_CHACHA20_POLY1305_SHA256', 'TLS_AES_128_GCM_SHA256', 'TLS_AES_256_GCM_SHA384', 'TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256'].join(':'),
+    honorCipherOrder: true,
+    minVersion: 'TLSv1.2',
+});
 
 const exec = promisify(childProcess.exec);
+const execFile = promisify(childProcess.execFile);
 
 const base_path = 'files';
 const versioning_dir = path.join(base_path, 'valorant');
@@ -41,10 +50,29 @@ const checkUpdateForRegion = async regionData => {
     } = regionData;
     const region = String(live[0]);
     try {
-        await exec(
-            `ManifestDownloader.exe ${patch_url} -b "https://valorant.secure.dyn.riotcdn.net/channels/public/bundles" -f "ShooterGame/Binaries/Win64/VALORANT-Win64-Shipping.exe" -o ${temp_dir} -t 4`,
-            {cwd: './', timeout: 60000}
-        );
+        if (platform() == 'win32')
+            await exec(
+                `ManifestDownloader.exe ${patch_url} -b "https://valorant.secure.dyn.riotcdn.net/channels/public/bundles" -f "ShooterGame/Binaries/Win64/VALORANT-Win64-Shipping.exe" -o ${temp_dir} -t 4`,
+                {cwd: process.cwd(), timeout: 60000}
+            );
+        else if (platform() == 'linux') {
+            const linux_base_folder = '/home/debian/ManifestDownloader';
+            await execFile(
+                linux_base_folder,
+                [
+                    patch_url,
+                    '-b',
+                    'https://valorant.secure.dyn.riotcdn.net/channels/public/bundles',
+                    '-f',
+                    'ShooterGame/Binaries/Win64/VALORANT-Win64-Shipping.exe',
+                    `-o`,
+                    temp_dir,
+                    '-t',
+                    '4',
+                ],
+                {cwd: process.cwd(), timeout: 60000}
+            );
+        }
     } catch (err) {
         console.error(err);
         return;
@@ -61,6 +89,7 @@ async function main() {
     try {
         const valorantRelease = await axios.get('https://clientconfig.rpg.riotgames.com/api/v1/config/public?namespace=keystone.products.valorant.patchlines', {
             timeout: 1000,
+            httpsAgent: agent,
         });
         const configurations = valorantRelease.data['keystone.products.valorant.patchlines.live'].platforms.win.configurations;
 
